@@ -1,14 +1,11 @@
 """
 Все клавиатуры бота — inline-кнопки для Max API.
-Формат Max: attachments → inline_keyboard → buttons (массив массивов).
 """
 
-
-def kb(buttons: list[list[tuple[str, str]]]) -> list[dict]:
+def kb(buttons):
     """
     Создать inline-клавиатуру для Max API.
     buttons: [[("Текст кнопки", "callback_data"), ...], ...]
-    Каждый внутренний список — одна строка кнопок.
     """
     rows = []
     for row in buttons:
@@ -20,16 +17,16 @@ def kb(buttons: list[list[tuple[str, str]]]) -> list[dict]:
                 "payload": payload
             })
         rows.append(r)
+    
     return [{
         "type": "inline_keyboard",
         "payload": {"buttons": rows}
     }]
 
 
-def kb_link(buttons: list[list]) -> list[dict]:
+def kb_link(buttons):
     """
     Клавиатура со смешанными кнопками (callback + link).
-    Каждый элемент: ("text", "callback_data") или ("text", "url", "link")
     """
     rows = []
     for row in buttons:
@@ -40,6 +37,7 @@ def kb_link(buttons: list[list]) -> list[dict]:
             else:
                 r.append({"type": "callback", "text": item[0], "payload": item[1]})
         rows.append(r)
+    
     return [{
         "type": "inline_keyboard",
         "payload": {"buttons": rows}
@@ -73,7 +71,6 @@ KB_CITY = kb([
     [("Средний город", "city_medium"), ("Небольшой город", "city_small")],
 ])
 
-# Количество клиентов — адаптивные
 KB_CLIENTS_SALON = kb([
     [("До 5", "cl_0-5"), ("5-10", "cl_5-10")],
     [("10-15", "cl_10-15"), ("Больше 15", "cl_15+")],
@@ -89,7 +86,6 @@ KB_CLIENTS_PRIVATE = kb([
     [("10-15", "cl_10-15"), ("Больше 15", "cl_15+")],
 ])
 
-# Главная проблема — адаптивные
 KB_PROBLEM_SALON = kb([
     [("Мало клиентов / пустые окна", "prob_few_clients")],
     [("Низкий процент, хочу больше", "prob_low_percent")],
@@ -111,7 +107,6 @@ KB_PROBLEM_PRIVATE = kb([
     [("Хочу масштабироваться", "prob_scale")],
 ])
 
-# Источники клиентов
 KB_SOURCES_SALON = kb([
     [("Администратор записывает", "src_admin")],
     [("Клиенты сами просят меня", "src_loyal")],
@@ -158,7 +153,7 @@ KB_AFTER_MATERIAL = kb([
 
 
 # ═══════════════════════════════════════
-# ХОЧУ БОЛЬШЕ КЛИЕНТОВ — подбор
+# ХОЧУ БОЛЬШЕ КЛИЕНТОВ
 # ═══════════════════════════════════════
 
 KB_SITUATION = kb([
@@ -174,7 +169,6 @@ KB_TRIED = kb([
 ])
 
 def kb_product_recommendation(product: str):
-    """Кнопки после рекомендации продукта."""
     buttons = []
     if product == "course":
         buttons.append([("📖 Подробнее о курсе →", "https://lp.massagestart.ru/#tariffs", "link")])
@@ -188,7 +182,7 @@ def kb_product_recommendation(product: str):
 
 
 # ═══════════════════════════════════════
-# ЦЕПОЧКА ПРОГРЕВА — кнопки по дням
+# ЦЕПОЧКА ПРОГРЕВА
 # ═══════════════════════════════════════
 
 KB_CHAIN_DAY2 = kb([
