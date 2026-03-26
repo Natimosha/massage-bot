@@ -48,12 +48,42 @@ dp = Dispatcher()
 
 async def send(chat_id, text, attachments=None):
     """Отправить сообщение с опциональными вложениями (кнопками)."""
-    await bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        attachments=attachments,
-    )
-
+    if attachments:
+        # Преобразуем attachments в правильный формат
+        from maxapi.types import InlineKeyboard, InlineButton
+        
+        formatted_attachments = []
+        for att in attachments:
+            if att["type"] == "inline_keyboard":
+                buttons = []
+                for row in att["payload"]["buttons"]:
+                    buttons_row = []
+                    for btn in row:
+                        if btn["type"] == "callback":
+                            buttons_row.append(InlineButton(
+                                type="callback",
+                                text=btn["text"],
+                                payload=btn["payload"]
+                            ))
+                        elif btn["type"] == "link":
+                            buttons_row.append(InlineButton(
+                                type="link",
+                                text=btn["text"],
+                                url=btn["url"]
+                            ))
+                    buttons.append(buttons_row)
+                formatted_attachments.append(InlineKeyboard(buttons=buttons))
+        
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            attachments=formatted_attachments
+        )
+    else:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text
+        )
 
 async def show_menu(chat_id):
     """Показать главное меню."""
