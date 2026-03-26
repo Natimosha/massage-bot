@@ -284,7 +284,7 @@ async def on_start_btn(event: BotStarted):
 
 @dp.message_created(Command("start"))
 async def on_start_cmd(event: MessageCreated):
-    cid = str(event.chat_id)
+    cid = str(event.message.recipient.chat_id)
     get_user(cid)
     await reply(cid,
         "Привет! Я — бот Натальи Тимошиной 👋\n\n"
@@ -297,7 +297,7 @@ async def on_start_cmd(event: MessageCreated):
 
 @dp.message_created()
 async def on_text(event: MessageCreated):
-    cid = str(event.chat_id)
+    cid = str(event.message.recipient.chat_id)
     u = get_user(cid)
     text = (event.message.body.text or "").strip()
 
