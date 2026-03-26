@@ -1,17 +1,11 @@
 """
 Бот-помощник Натальи Тимошиной — Max мессенджер
-Упрощённая версия для тестирования
 """
 import os
-import maxapi.types as t
-import logging
-logging.basicConfig(level=logging.INFO)
-logging.info([x for x in dir(t) if 'utton' in x.lower() or 'eyboard' in x.lower() or 'nline' in x.lower() or 'ttach' in x.lower()])
 import logging
 import asyncio
-
 from maxapi import Bot, Dispatcher
-from maxapi.types import MessageCreated, Command, MessageCallback, BotStarted
+from maxapi.types import MessageCreated, Command, MessageCallback, BotStarted, CallbackButton, LinkButton, ButtonsPayload, Attachment
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,7 +16,7 @@ dp = Dispatcher()
 
 
 # ═══════════════════════════════════════
-# КЛАВИАТУРЫ (словари — так работает maxapi)
+# КЛАВИАТУРЫ (ПРАВИЛЬНЫЙ ФОРМАТ)
 # ═══════════════════════════════════════
 
 def make_kb(buttons):
@@ -33,10 +27,15 @@ def make_kb(buttons):
     rows = []
     for row in buttons:
         r = []
-        for text, payload in row:
-            r.append({"type": "callback", "text": text, "payload": payload})
+        for item in row:
+            if len(item) == 3 and item[2] == "link":
+                r.append(LinkButton(text=item[0], url=item[1]))
+            else:
+                r.append(CallbackButton(text=item[0], payload=item[1]))
         rows.append(r)
-    return [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
+    
+    payload = ButtonsPayload(buttons=rows)
+    return [Attachment(type="inline_keyboard", payload=payload)]
 
 
 MAIN_MENU = make_kb([
@@ -213,7 +212,7 @@ RESULTS = {
 
 
 # ═══════════════════════════════════════
-# ХРАНЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЕЙ (в памяти)
+# ХРАНЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЕЙ
 # ═══════════════════════════════════════
 
 users = {}
@@ -253,7 +252,7 @@ def determine_scenario(u):
     if wm == "salon":
         return "salon-exit" if prob == "prob_exit" else "salon-grow"
     elif wm == "hybrid":
-        return "salon-exit" if prob == "prob_exit" else "hybrid-grow"
+        return "hybrid-exit" if prob == "prob_exit" else "hybrid-grow"
     elif wm == "private":
         if prob in ("prob_more", "prob_scale"):
             return "private-optimize"
@@ -308,20 +307,15 @@ async def on_text(event: MessageCreated):
     if not text:
         return
 
-    # Ждём имя
     if u.get("state") == "wait_name":
         name = text.split()[0].capitalize()
         set_user(cid, name=name, state="wait_wm")
         await reply(cid, f"{name}, расскажите — как вы сейчас работаете?", KB_WORK_MODE)
         return
 
-    # Любой другой текст
     if text.lower() in ("меню", "menu", "старт"):
         set_user(cid, state=None)
-        await reply(cid,
-            "Выбирайте:",
-            MAIN_MENU
-        )
+        await reply(cid, "Выбирайте:", MAIN_MENU)
 
 
 @dp.message_callback()
@@ -333,13 +327,11 @@ async def on_callback(event: MessageCallback):
 
     logger.info(f"Callback {cid}: {data}")
 
-    # ─── Назад в меню ───
     if data == "back_menu":
         set_user(cid, state=None)
         await reply(cid, "Выбирайте:", MAIN_MENU)
         return
 
-    # ─── ГЛАВНОЕ МЕНЮ ───
     if data == "menu_diag":
         set_user(cid, state="wait_name")
         await reply(cid, "Отлично, давайте разберёмся!\n\nДля начала — как вас зовут? Напишите имя.")
@@ -358,31 +350,23 @@ async def on_callback(event: MessageCallback):
         )
         return
 
-    # ─── ДИАГНОСТИКА ───
-
-    # Формат работы
     if data.startswith("wm_"):
         mode_map = {"wm_salon": "salon", "wm_hybrid": "hybrid", "wm_private": "private"}
         set_user(cid, work_mode=mode_map.get(data, "private"), state="wait_city")
-        await reply(cid,
-            "В каком городе работаете? Это важно — цены и конкуренция отличаются.",
-            KB_CITY
-        )
+        await reply(cid, "В каком городе работаете?", KB_CITY)
         return
 
-    # Город
     if data.startswith("city_"):
         set_user(cid, city=data, state="wait_clients")
         wm = u.get("work_mode", "private")
         if wm == "salon":
             await reply(cid, "Сколько клиентов у вас в неделю в салоне?", KB_CLIENTS_SALON)
         elif wm == "hybrid":
-            await reply(cid, "Сколько частных клиентов в неделю? Не считая салон.", KB_CLIENTS_HYBRID)
+            await reply(cid, "Сколько частных клиентов в неделю?", KB_CLIENTS_HYBRID)
         else:
             await reply(cid, "Сколько клиентов у вас в неделю?", KB_CLIENTS_PRIVATE)
         return
 
-    # Количество клиентов
     if data.startswith("cl_"):
         set_user(cid, clients=data, state="wait_problem")
         wm = u.get("work_mode", "private")
@@ -394,38 +378,30 @@ async def on_callback(event: MessageCallback):
             await reply(cid, "Что сейчас беспокоит больше всего?", KB_PROBLEM_PRIVATE)
         return
 
-    # Проблема
     if data.startswith("prob_"):
         set_user(cid, problem=data, state="wait_sources")
         wm = u.get("work_mode", "private")
         if wm == "salon":
-            await reply(cid, "Последний вопрос! Как клиенты попадают именно к вам?", KB_SOURCES_SALON)
+            await reply(cid, "Как клиенты попадают именно к вам?", KB_SOURCES_SALON)
         else:
-            await reply(cid,
-                "Последний вопрос! Откуда приходят клиенты? "
-                "Выберите всё подходящее, потом нажмите «Готово».",
-                KB_SOURCES_PRIVATE
-            )
+            await reply(cid, "Откуда приходят клиенты? Выберите всё, потом «Готово».", KB_SOURCES_PRIVATE)
         return
 
-    # Источники
     if data.startswith("src_"):
         if data == "src_done":
-            pass  # Переходим к результату ниже
+            pass
         else:
             wm = u.get("work_mode", "private")
             if wm == "salon":
                 set_user(cid, sources=[data])
-                # Для салона — сразу к результату
             else:
                 sources = u.get("sources", [])
                 if data not in sources:
                     sources.append(data)
                     set_user(cid, sources=sources)
-                await reply(cid, "✓ Добавлено. Выберите ещё или нажмите «Готово».", KB_SOURCES_PRIVATE)
+                await reply(cid, "✓ Добавлено. Выберите ещё или «Готово».", KB_SOURCES_PRIVATE)
                 return
 
-        # Показываем результат
         u = get_user(cid)
         scenario = determine_scenario(u)
         result_text = RESULTS.get(scenario, RESULTS["private-grow"])
@@ -433,34 +409,29 @@ async def on_callback(event: MessageCallback):
         await reply(cid, result_text.format(name=name), KB_RESULT)
         return
 
-    # Ссылка на сайт
     if data == "go_site":
         await reply(cid,
-            "Переходите по ссылке для получения полного плана:\n"
-            "👉 https://lp.massagestart.ru\n\n"
+            "Переходите по ссылке:\n👉 https://lp.massagestart.ru\n\n"
             "Там вы сможете пройти полную диагностику с расчётами.",
             KB_BACK
         )
         return
 
-    # ─── МАТЕРИАЛЫ ───
     if data.startswith("mat_"):
         names = {
-            "mat_mistakes": "10 ошибок, из-за которых уходят клиенты",
+            "mat_mistakes": "10 ошибок",
             "mat_expensive": "Как ответить на «дорого»",
-            "mat_templates": "Шаблоны сообщений для записи",
+            "mat_templates": "Шаблоны сообщений",
         }
         mat = names.get(data, "Материал")
         await reply(cid,
             f"📎 «{mat}» — отправляю!\n\n"
-            "[Файл будет добавлен после создания PDF-материалов]\n\n"
-            "Кстати, если хотите понять, что в вашей ситуации сработает лучше — "
-            "могу сделать быстрый разбор за 2 минуты.",
+            "[Файл будет добавлен после создания PDF]\n\n"
+            "Хотите разбор вашей ситуации?",
             KB_AFTER_MAT
         )
         return
 
-    # ─── ХОЧУ БОЛЬШЕ КЛИЕНТОВ ───
     if data.startswith("sit_"):
         sit_map = {"sit_beg": "beginner", "sit_unst": "unstable", "sit_opt": "optimize"}
         set_user(cid, situation=sit_map.get(data, "unstable"), state="cl_q2")
@@ -472,32 +443,16 @@ async def on_callback(event: MessageCallback):
         sit = u.get("situation", "unstable")
 
         if sit == "beginner":
-            text = (
-                "Понимаю — когда не знаешь, за что хвататься, "
-                "любой совет кажется абстрактным.\n\n"
-                "Вам подойдёт курс «7 дней — 7 шагов к доходу на массаже». "
-                "Каждый день — одно конкретное действие.\n\n"
-                "Или начните с бесплатного разбора ситуации."
-            )
+            text = "Понимаю. Вам подойдёт курс «7 дней — 7 шагов к доходу»."
         elif sit == "optimize":
-            text = (
-                "У вас уже рабочая система — здорово.\n\n"
-                "На вашем уровне рост — это повышение чека, "
-                "автоматизация или масштабирование.\n\n"
-                "Лучше всего сработает персональная консультация."
-            )
+            text = "У вас уже система. Рост через повышение чека или масштабирование."
         else:
-            text = (
-                "Знакомая история — вроде стараешься, а результат не тот.\n\n"
-                "Скорее всего, силы уходят не туда. "
-                "Рекомендую начать с диагностики — "
-                "я определю ваш сценарий и покажу, на чём сфокусироваться."
-            )
+            text = "Рекомендую начать с диагностики — определю ваш сценарий."
 
         set_user(cid, state=None)
         await reply(cid, text, make_kb([
-            [("🔍 Сделать разбор бесплатно", "menu_diag")],
-            [("🔙 Вернуться в меню", "back_menu")],
+            [("🔍 Сделать разбор", "menu_diag")],
+            [("🔙 Меню", "back_menu")],
         ]))
         return
 
