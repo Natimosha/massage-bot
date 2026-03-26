@@ -1,3 +1,5 @@
+import maxapi.types as t
+print([x for x in dir(t) if 'utton' in x.lower() or 'keyboard' in x.lower() or 'inline' in x.lower()])
 """
 Бот-помощник Натальи Тимошиной — Max мессенджер
 Упрощённая версия для тестирования
