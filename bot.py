@@ -1,5 +1,7 @@
 import maxapi.types as t
-print([x for x in dir(t) if 'utton' in x.lower() or 'keyboard' in x.lower() or 'inline' in x.lower()])
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.info([x for x in dir(t) if 'utton' in x.lower() or 'eyboard' in x.lower() or 'nline' in x.lower() or 'ttach' in x.lower()])
 """
 Бот-помощник Натальи Тимошиной — Max мессенджер
 Упрощённая версия для тестирования
