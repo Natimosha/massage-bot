@@ -79,7 +79,7 @@ async def on_bot_started(event: BotStarted):
 @dp.message_created(Command("start"))
 async def on_start_command(event: MessageCreated):
     """Пользователь отправил /start."""
-    chat_id = str(event.chat_id)
+    chat_id = str(event.user_id)
     user = await get_user(chat_id)
     await show_menu(chat_id)
     if user.get("chain_day", 0) == 0:
