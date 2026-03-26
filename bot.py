@@ -1,12 +1,12 @@
-import maxapi.types as t
-import logging
-logging.basicConfig(level=logging.INFO)
-logging.info([x for x in dir(t) if 'utton' in x.lower() or 'eyboard' in x.lower() or 'nline' in x.lower() or 'ttach' in x.lower()])
 """
 Бот-помощник Натальи Тимошиной — Max мессенджер
 Упрощённая версия для тестирования
 """
 import os
+import maxapi.types as t
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.info([x for x in dir(t) if 'utton' in x.lower() or 'eyboard' in x.lower() or 'nline' in x.lower() or 'ttach' in x.lower()])
 import logging
 import asyncio
 
