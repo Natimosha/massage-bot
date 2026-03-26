@@ -68,7 +68,7 @@ async def show_menu(chat_id):
 @dp.bot_started()
 async def on_bot_started(event: BotStarted):
     """Пользователь нажал кнопку «Начать» в боте."""
-    chat_id = str(event.message.chat_id)
+    chat_id = str(event.chat_id)  # ✅ ИСПРАВЛЕНО: chat_id прямо в event
     user = await get_user(chat_id)
     await show_menu(chat_id)
     # Запуск цепочки прогрева через 24 часа
@@ -79,7 +79,7 @@ async def on_bot_started(event: BotStarted):
 @dp.message_created(Command("start"))
 async def on_start_command(event: MessageCreated):
     """Пользователь отправил /start."""
-    chat_id = str(event.message.chat_id)
+    chat_id = str(event.chat_id)  # ✅ ИСПРАВЛЕНО: chat_id прямо в event
     user = await get_user(chat_id)
     await show_menu(chat_id)
     if user.get("chain_day", 0) == 0:
@@ -93,9 +93,9 @@ async def on_start_command(event: MessageCreated):
 @dp.message_created()
 async def on_message(event: MessageCreated):
     """Обработка текстовых сообщений."""
-    chat_id = str(event.message.chat_id)
+    chat_id = str(event.chat_id)  # ✅ ИСПРАВЛЕНО: chat_id прямо в event
     user = await get_user(chat_id)
-    text = (event.message.body.text or "").strip()
+    text = (event.message.body.text or "").strip()  # ✅ ПРАВИЛЬНО
 
     if not text:
         return
@@ -119,7 +119,7 @@ async def on_message(event: MessageCreated):
 @dp.message_callback()
 async def on_callback(event: MessageCallback):
     """Обработка нажатий inline-кнопок."""
-    chat_id = str(event.message.chat_id)
+    chat_id = str(event.chat_id)  # ✅ ИСПРАВЛЕНО: chat_id прямо в event
     data = event.callback.payload or ""
     user = await get_user(chat_id)
     name = user.get("name", "")
