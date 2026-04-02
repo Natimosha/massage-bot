@@ -435,7 +435,43 @@ async def on_text(event: MessageCreated):
     
     if not text:
         return
-
+    
+    # ⭐ ОБРАБОТКА КОМАНДЫ /reply ⭐
+    if text.startswith("/reply"):
+        # Только админ может использовать /reply
+        if cid != ADMIN_CHAT_ID:
+            await reply(cid, "⛔ Нет прав")
+            return
+        
+        parts = text.split(maxsplit=2)
+        if len(parts) < 3:
+            await reply(cid, "❌ Формат: /reply ID_пользователя Текст ответа\n\nПример: /reply 232975199 Здравствуйте!")
+            return
+        
+        try:
+            user_id = int(parts[1])
+            reply_text = parts[2]
+            
+            # Отправляем ответ пользователю
+            await bot.send_message(
+                chat_id=user_id,
+                text=f"💬 **Ответ от Натальи:**\n\n{reply_text}\n\n---\nЕсли у вас есть ещё вопросы, я всегда на связи! 🤗"
+            )
+            
+            # Подтверждение админу
+            await reply(cid, f"✅ Ответ отправлен пользователю `{user_id}`")
+            
+            # Логируем
+            with open("ответы_админа.txt", "a", encoding="utf-8") as f:
+                from datetime import datetime
+                f.write(f"{datetime.now()} | Ответ пользователю {user_id}: {reply_text}\n")
+                
+        except ValueError:
+            await reply(cid, "❌ Ошибка: ID должен быть числом")
+        except Exception as e:
+            await reply(cid, f"❌ Ошибка при отправке: {e}")
+        return
+    
     state = u.get("state")
 
     # Ждём имя
@@ -495,6 +531,7 @@ async def on_text(event: MessageCreated):
     
     # Сохраняем в файл
     with open("вопросы.txt", "a", encoding="utf-8") as f:
+        from datetime import datetime
         f.write(f"{'='*60}\n")
         f.write(f"Время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Имя: {user_name}\n")
@@ -503,7 +540,7 @@ async def on_text(event: MessageCreated):
         f.write(f"Вопрос: {text}\n")
         f.write(f"{'='*60}\n\n")
     
-    # Отправляем уведомление админу (только если это не сам админ)
+    # Отправляем уведомление админу
     if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
         try:
             await bot.send_message(
