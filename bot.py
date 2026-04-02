@@ -645,7 +645,13 @@ async def on_callback(event: MessageCallback):
 # ═══════════════════════════════════════════════════════════════
 # ЗАПУСК
 # ═══════════════════════════════════════════════════════════════
-
+@dp.message_created()
+async def get_my_id(event: MessageCreated):
+    cid = event.message.recipient.chat_id
+    await bot.send_message(
+        chat_id=cid,
+        text=f"🔑 ВАШ ID: `{cid}`\n\nВставьте это число в переменную ADMIN_CHAT_ID в коде бота."
+    )
 async def main():
     logger.info("Бот запускается...")
     await dp.start_polling(bot)
