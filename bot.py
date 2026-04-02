@@ -426,7 +426,6 @@ async def on_text(event: MessageCreated):
             set_user(cid, email=text.strip(), state="send_material")
             await reply(cid, "Спасибо! Сохранила ✉️ Отправляю материал.")
             logger.info(f"Email collected: {text.strip()} from {cid}")
-            # Отправляем материал
             u = get_user(cid)
             mat_key = u.get("pending_material", "")
             await send_material(cid, mat_key)
@@ -441,6 +440,29 @@ async def on_text(event: MessageCreated):
     if text.lower() in ("меню", "menu", "старт"):
         set_user(cid, state=None)
         await reply(cid, "Выбирайте:", MAIN_MENU)
+        return
+    
+    # Сохраняем вопрос в файл
+    from datetime import datetime
+    user_name = u.get("name") or "Не представился"
+    user_email = u.get("email") or "email не указан"
+    
+    with open("вопросы.txt", "a", encoding="utf-8") as f:
+        f.write(f"{'='*60}\n")
+        f.write(f"Время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Имя: {user_name}\n")
+        f.write(f"ID: {cid}\n")
+        f.write(f"Email: {user_email}\n")
+        f.write(f"Вопрос: {text}\n")
+        f.write(f"{'='*60}\n\n")
+    
+    # Отвечаем пользователю
+    await reply(
+        cid,
+        "🙏 Спасибо за вопрос! Я передам его Наталье, и она свяжется с вами в ближайшее время",
+        MAIN_MENU
+    )
+    return
 
 
 async def send_material(cid, mat_key):
