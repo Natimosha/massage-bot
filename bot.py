@@ -401,11 +401,14 @@ async def on_start_btn(event: BotStarted):
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
     
-    if ADMIN_CHAT_ID:
-        await bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=f"🆕 **Новый пользователь в боте!**\nID: `{cid}`"
-        )
+    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=f"🆕 **Новый пользователь в боте!**\nID: `{cid}`"
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось отправить уведомление: {e}")
 
 
 @dp.message_created(Command("start"))
@@ -414,11 +417,14 @@ async def on_start_cmd(event: MessageCreated):
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
     
-    if ADMIN_CHAT_ID:
-        await bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=f"🆕 **Новый пользователь в боте!**\nID: `{cid}`"
-        )
+    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=f"🆕 **Новый пользователь в боте!**\nID: `{cid}`"
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось отправить уведомление: {e}")
 
 
 @dp.message_created()
@@ -426,6 +432,7 @@ async def on_text(event: MessageCreated):
     cid = event.message.recipient.chat_id
     u = get_user(cid)
     text = (event.message.body.text or "").strip()
+    
     if not text:
         return
 
@@ -437,11 +444,14 @@ async def on_text(event: MessageCreated):
         set_user(cid, name=name, state="wait_wm")
         await reply(cid, f"{name}, расскажите — как вы сейчас работаете?", KB_WORK_MODE)
         
-        if ADMIN_CHAT_ID:
-            await bot.send_message(
-                chat_id=ADMIN_CHAT_ID,
-                text=f"👤 Пользователь **{name}** (ID: `{cid}`) проходит диагностику."
-            )
+        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+            try:
+                await bot.send_message(
+                    chat_id=ADMIN_CHAT_ID,
+                    text=f"👤 Пользователь **{name}** (ID: `{cid}`) проходит диагностику."
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось отправить уведомление: {e}")
         return
 
     # Ждём email
@@ -454,12 +464,15 @@ async def on_text(event: MessageCreated):
             mat_key = u.get("pending_material", "")
             await send_material(cid, mat_key)
             
-            if ADMIN_CHAT_ID:
+            if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
                 user_name = u.get("name") or "Неизвестный"
-                await bot.send_message(
-                    chat_id=ADMIN_CHAT_ID,
-                    text=f"📧 Пользователь **{user_name}** (ID: `{cid}`) оставил email:\n`{text.strip()}`"
-                )
+                try:
+                    await bot.send_message(
+                        chat_id=ADMIN_CHAT_ID,
+                        text=f"📧 Пользователь **{user_name}** (ID: `{cid}`) оставил email:\n`{text.strip()}`"
+                    )
+                except Exception as e:
+                    logger.warning(f"Не удалось отправить уведомление: {e}")
         else:
             await reply(cid,
                 "Хм, не очень похоже на email. Попробуйте ещё раз или нажмите «Пропустить».",
@@ -490,17 +503,20 @@ async def on_text(event: MessageCreated):
         f.write(f"Вопрос: {text}\n")
         f.write(f"{'='*60}\n\n")
     
-    # Отправляем уведомление админу
-    if ADMIN_CHAT_ID:
-        await bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=f"❓ **Новый вопрос от {user_name}**\n\n"
-                 f"👤 Имя: {user_name}\n"
-                 f"🆔 ID: `{cid}`\n"
-                 f"📧 Email: {user_email}\n\n"
-                 f"💬 **Вопрос:**\n{text}\n\n"
-                 f"📝 Чтобы ответить, используйте команду:\n`/reply {cid} Текст ответа`"
-        )
+    # Отправляем уведомление админу (только если это не сам админ)
+    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=f"❓ **Новый вопрос от {user_name}**\n\n"
+                     f"👤 Имя: {user_name}\n"
+                     f"🆔 ID: `{cid}`\n"
+                     f"📧 Email: {user_email}\n\n"
+                     f"💬 **Вопрос:**\n{text}\n\n"
+                     f"📝 Чтобы ответить, используйте команду:\n`/reply {cid} Текст ответа`"
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось отправить уведомление: {e}")
     
     # Отвечаем пользователю
     await reply(
@@ -657,12 +673,15 @@ async def on_callback(event: MessageCallback):
         result_text = build_result_text(u)
         await reply(cid, result_text, KB_RESULT)
         
-        if ADMIN_CHAT_ID:
+        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
             user_name = u.get("name") or "Неизвестный"
-            await bot.send_message(
-                chat_id=ADMIN_CHAT_ID,
-                text=f"✅ Пользователь **{user_name}** (ID: `{cid}`) завершил диагностику!\nСценарий: {scenario}"
-            )
+            try:
+                await bot.send_message(
+                    chat_id=ADMIN_CHAT_ID,
+                    text=f"✅ Пользователь **{user_name}** (ID: `{cid}`) завершил диагностику!\nСценарий: {scenario}"
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось отправить уведомление: {e}")
         return
 
     if data == "go_site":
