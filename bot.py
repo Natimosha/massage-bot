@@ -17,6 +17,11 @@ TOKEN = os.environ.get("BOT_TOKEN")
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
+# ═══════════════════════════════════════════════════════════════
+# НАСТРОЙКИ АДМИНИСТРАТОРА - ВАШ ID
+# ═══════════════════════════════════════════════════════════════
+ADMIN_CHAT_ID = 148914425  # ВАШ ID (user_id)
+
 
 # ═══════════════════════════════════════════════════════════════
 # БЕНЧМАРКИ ЦЕН ПО ГОРОДАМ
@@ -394,6 +399,13 @@ async def on_start_btn(event: BotStarted):
     cid = event.chat_id
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
+    
+    # Уведомление админу
+    if ADMIN_CHAT_ID:
+        await bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=f"🆕 **Новый пользователь в боте!**\nID: `{cid}`"
+        )
 
 
 @dp.message_created(Command("start"))
@@ -401,6 +413,13 @@ async def on_start_cmd(event: MessageCreated):
     cid = event.message.recipient.chat_id
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
+    
+    # Уведомление админу
+    if ADMIN_CHAT_ID:
+        await bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=f"🆕 **Новый пользователь в боте!**\nID: `{cid}`"
+        )
 
 
 @dp.message_created()
@@ -418,6 +437,13 @@ async def on_text(event: MessageCreated):
         name = text.split()[0].capitalize()
         set_user(cid, name=name, state="wait_wm")
         await reply(cid, f"{name}, расскажите — как вы сейчас работаете?", KB_WORK_MODE)
+        
+        # Уведомление админу
+        if ADMIN_CHAT_ID:
+            await bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=f"👤 Пользователь **{name}** (ID: `{cid}`) проходит диагностику."
+            )
         return
 
     # Ждём email
@@ -429,6 +455,14 @@ async def on_text(event: MessageCreated):
             u = get_user(cid)
             mat_key = u.get("pending_material", "")
             await send_material(cid, mat_key)
+            
+            # Уведомление админу
+            if ADMIN_CHAT_ID:
+                user_name = u.get("name") or "Неизвестный"
+                await bot.send_message(
+                    chat_id=ADMIN_CHAT_ID,
+                    text=f"📧 Пользователь **{user_name}** (ID: `{cid}`) оставил email:\n`{text.strip()}`"
+                )
         else:
             await reply(cid,
                 "Хм, не очень похоже на email. Попробуйте ещё раз или нажмите «Пропустить».",
@@ -436,17 +470,21 @@ async def on_text(event: MessageCreated):
             )
         return
 
-    # Любой другой текст
+    # Команды меню
     if text.lower() in ("меню", "menu", "старт"):
         set_user(cid, state=None)
         await reply(cid, "Выбирайте:", MAIN_MENU)
         return
     
-    # Сохраняем вопрос в файл
+    # ═══════════════════════════════════════════════════════════════
+    # ЛЮБОЙ ДРУГОЙ ТЕКСТ - ВОПРОС ПОЛЬЗОВАТЕЛЯ
+    # ═══════════════════════════════════════════════════════════════
+    
     from datetime import datetime
     user_name = u.get("name") or "Не представился"
     user_email = u.get("email") or "email не указан"
     
+    # Сохраняем в файл
     with open("вопросы.txt", "a", encoding="utf-8") as f:
         f.write(f"{'='*60}\n")
         f.write(f"Время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -455,6 +493,18 @@ async def on_text(event: MessageCreated):
         f.write(f"Email: {user_email}\n")
         f.write(f"Вопрос: {text}\n")
         f.write(f"{'='*60}\n\n")
+    
+    # Отправляем уведомление админу
+    if ADMIN_CHAT_ID:
+        await bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=f"❓ **Новый вопрос от {user_name}**\n\n"
+                 f"👤 Имя: {user_name}\n"
+                 f"🆔 ID: `{cid}`\n"
+                 f"📧 Email: {user_email}\n\n"
+                 f"💬 **Вопрос:**\n{text}\n\n"
+                 f"📝 Чтобы ответить, используйте команду:\n`/reply {cid} Текст ответа`"
+        )
     
     # Отвечаем пользователю
     await reply(
@@ -610,6 +660,14 @@ async def on_callback(event: MessageCallback):
         set_user(cid, scenario=scenario, state=None)
         result_text = build_result_text(u)
         await reply(cid, result_text, KB_RESULT)
+        
+        # Уведомление админу о завершении диагностики
+        if ADMIN_CHAT_ID:
+            user_name = u.get("name") or "Неизвестный"
+            await bot.send_message(
+                chat_id=ADMIN_CHAT_ID,
+                text=f"✅ Пользователь **{user_name}** (ID: `{cid}`) завершил диагностику!\nСценарий: {scenario}"
+            )
         return
 
     if data == "go_site":
@@ -643,12 +701,22 @@ async def on_callback(event: MessageCallback):
 
 
 # ═══════════════════════════════════════════════════════════════
-# ЗАПУСК
+# КОМАНДЫ АДМИНИСТРАТОРА
 # ═══════════════════════════════════════════════════════════════
 
-async def main():
-    logger.info("Бот запускается...")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+@dp.message_created(Command("reply"))
+async def reply_to_user(event: MessageCreated):
+    """Отправляет ответ конкретному пользователю. Использование: /reply 123456789 Текст ответа"""
+    cid = event.message.recipient.chat_id
+    
+    # Проверяем, что команду вводит админ
+    if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
+        await reply(cid, "⛔ У вас нет прав для этой команды.")
+        return
+    
+    # Получаем текст команды
+    text = (event.message.body.text or "").strip()
+    
+    # Разбираем команду: /reply ID текст
+    parts = text.split(maxsplit=2)
+    if len(parts) <
