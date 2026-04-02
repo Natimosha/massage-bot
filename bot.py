@@ -1,10 +1,11 @@
 """
 Бот-помощник Натальи Тимошиной — Max мессенджер
-Версия 3.0
+Версия 3.0 с админ-панелью
 """
 import os
 import logging
 import asyncio
+from datetime import datetime
 
 from maxapi import Bot, Dispatcher
 from maxapi.types import MessageCreated, Command, MessageCallback, BotStarted
@@ -20,7 +21,7 @@ dp = Dispatcher()
 # ═══════════════════════════════════════════════════════════════
 # НАСТРОЙКИ АДМИНИСТРАТОРА - ВАШ ID
 # ═══════════════════════════════════════════════════════════════
-ADMIN_CHAT_ID = 148914425  # ВАШ ID (user_id)
+ADMIN_CHAT_ID = 148914425  # ВАШ ID
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -400,7 +401,6 @@ async def on_start_btn(event: BotStarted):
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
     
-    # Уведомление админу
     if ADMIN_CHAT_ID:
         await bot.send_message(
             chat_id=ADMIN_CHAT_ID,
@@ -414,7 +414,6 @@ async def on_start_cmd(event: MessageCreated):
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
     
-    # Уведомление админу
     if ADMIN_CHAT_ID:
         await bot.send_message(
             chat_id=ADMIN_CHAT_ID,
@@ -438,7 +437,6 @@ async def on_text(event: MessageCreated):
         set_user(cid, name=name, state="wait_wm")
         await reply(cid, f"{name}, расскажите — как вы сейчас работаете?", KB_WORK_MODE)
         
-        # Уведомление админу
         if ADMIN_CHAT_ID:
             await bot.send_message(
                 chat_id=ADMIN_CHAT_ID,
@@ -456,7 +454,6 @@ async def on_text(event: MessageCreated):
             mat_key = u.get("pending_material", "")
             await send_material(cid, mat_key)
             
-            # Уведомление админу
             if ADMIN_CHAT_ID:
                 user_name = u.get("name") or "Неизвестный"
                 await bot.send_message(
@@ -480,7 +477,6 @@ async def on_text(event: MessageCreated):
     # ЛЮБОЙ ДРУГОЙ ТЕКСТ - ВОПРОС ПОЛЬЗОВАТЕЛЯ
     # ═══════════════════════════════════════════════════════════════
     
-    from datetime import datetime
     user_name = u.get("name") or "Не представился"
     user_email = u.get("email") or "email не указан"
     
@@ -661,7 +657,6 @@ async def on_callback(event: MessageCallback):
         result_text = build_result_text(u)
         await reply(cid, result_text, KB_RESULT)
         
-        # Уведомление админу о завершении диагностики
         if ADMIN_CHAT_ID:
             user_name = u.get("name") or "Неизвестный"
             await bot.send_message(
@@ -709,14 +704,110 @@ async def reply_to_user(event: MessageCreated):
     """Отправляет ответ конкретному пользователю. Использование: /reply 123456789 Текст ответа"""
     cid = event.message.recipient.chat_id
     
-    # Проверяем, что команду вводит админ
     if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
         await reply(cid, "⛔ У вас нет прав для этой команды.")
         return
     
-    # Получаем текст команды
     text = (event.message.body.text or "").strip()
-    
-    # Разбираем команду: /reply ID текст
     parts = text.split(maxsplit=2)
-    if len(parts) <
+    
+    if len(parts) < 3:
+        await reply(cid, "❌ Формат команды:\n/reply ID_пользователя Текст ответа\n\nПример: /reply 123456789 Здравствуйте!")
+        return
+    
+    try:
+        user_id = int(parts[1])
+        reply_text = parts[2]
+        
+        await bot.send_message(
+            chat_id=user_id,
+            text=f"💬 **Ответ от Натальи:**\n\n{reply_text}\n\n---\nЕсли у вас есть ещё вопросы, я всегда на связи! 🤗"
+        )
+        
+        await reply(cid, f"✅ Ответ успешно отправлен пользователю `{user_id}`\n\n📤 Текст ответа:\n{reply_text}")
+        
+        with open("ответы_админа.txt", "a", encoding="utf-8") as f:
+            f.write(f"{'='*60}\n")
+            f.write(f"Время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Пользователю ID: {user_id}\n")
+            f.write(f"Ответ: {reply_text}\n")
+            f.write(f"{'='*60}\n\n")
+            
+    except ValueError:
+        await reply(cid, "❌ Ошибка: ID пользователя должен быть числом.\nПример: /reply 123456789 Текст ответа")
+    except Exception as e:
+        await reply(cid, f"❌ Ошибка при отправке: {str(e)}")
+
+
+@dp.message_created(Command("stats"))
+async def show_stats(event: MessageCreated):
+    """Показывает статистику бота"""
+    cid = event.message.recipient.chat_id
+    
+    if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
+        await reply(cid, "⛔ У вас нет прав для этой команды.")
+        return
+    
+    total_users = len(users)
+    users_with_name = sum(1 for u in users.values() if u.get("name"))
+    users_with_email = sum(1 for u in users.values() if u.get("email"))
+    completed_diag = sum(1 for u in users.values() if u.get("scenario"))
+    
+    stats_text = (
+        f"📊 **Статистика бота**\n\n"
+        f"👥 Всего пользователей: {total_users}\n"
+        f"📝 Представились: {users_with_name}\n"
+        f"📧 Оставили email: {users_with_email}\n"
+        f"✅ Прошли диагностику: {completed_diag}"
+    )
+    
+    await reply(cid, stats_text)
+
+
+@dp.message_created(Command("last"))
+async def show_last_questions(event: MessageCreated):
+    """Показывает последние 5 вопросов"""
+    cid = event.message.recipient.chat_id
+    
+    if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
+        await reply(cid, "⛔ У вас нет прав для этой команды.")
+        return
+    
+    try:
+        with open("вопросы.txt", "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        blocks = content.split("="*60)
+        last_blocks = blocks[-5:]
+        
+        if len(last_blocks) < 2:
+            await reply(cid, "📭 Вопросов пока нет.")
+            return
+        
+        result = "📋 **Последние вопросы:**\n\n"
+        for block in last_blocks:
+            if block.strip():
+                lines = block.strip().split("\n")
+                for line in lines:
+                    if "Имя:" in line or "Вопрос:" in line:
+                        result += f"{line}\n"
+                result += "-"*30 + "\n"
+        
+        await reply(cid, result)
+        
+    except FileNotFoundError:
+        await reply(cid, "📭 Файл с вопросами еще не создан.")
+    except Exception as e:
+        await reply(cid, f"❌ Ошибка: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════
+# ЗАПУСК
+# ═══════════════════════════════════════════════════════════════
+
+async def main():
+    logger.info("Бот запускается...")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
