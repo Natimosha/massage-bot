@@ -485,10 +485,53 @@ async def on_text(event: MessageCreated):
     if not text:
         return
     
-    # Пропускаем команды — их обрабатывают отдельные хэндлеры
-    if text.startswith("/stats") or text.startswith("/last"):
+    # ⭐ ОБРАБОТКА КОМАНДЫ /stats ⭐
+    if text.startswith("/stats"):
+        if cid != ADMIN_CHAT_ID:
+            await reply(cid, "⛔ Нет прав")
+            return
+        total_users = len(users)
+        users_with_name = sum(1 for u in users.values() if u.get("name"))
+        users_with_email = sum(1 for u in users.values() if u.get("email"))
+        completed_diag = sum(1 for u in users.values() if u.get("scenario"))
+        stats_text = (
+            f"📊 **Статистика бота**\n\n"
+            f"👥 Всего пользователей: {total_users}\n"
+            f"📝 Представились: {users_with_name}\n"
+            f"📧 Оставили email: {users_with_email}\n"
+            f"✅ Прошли диагностику: {completed_diag}"
+        )
+        await reply(cid, stats_text)
         return
-    
+
+    # ⭐ ОБРАБОТКА КОМАНДЫ /last ⭐
+    if text.startswith("/last"):
+        if cid != ADMIN_CHAT_ID:
+            await reply(cid, "⛔ Нет прав")
+            return
+        try:
+            with open("вопросы.txt", "r", encoding="utf-8") as f:
+                content = f.read()
+            blocks = content.split("="*60)
+            last_blocks = blocks[-5:]
+            if len(last_blocks) < 2:
+                await reply(cid, "📭 Вопросов пока нет.")
+                return
+            result = "📋 **Последние вопросы:**\n\n"
+            for block in last_blocks:
+                if block.strip():
+                    lines = block.strip().split("\n")
+                    for line in lines:
+                        if "Имя:" in line or "Вопрос:" in line:
+                            result += f"{line}\n"
+                    result += "-"*30 + "\n"
+            await reply(cid, result)
+        except FileNotFoundError:
+            await reply(cid, "📭 Вопросов пока нет.")
+        except Exception as e:
+            await reply(cid, f"❌ Ошибка: {e}")
+        return
+
     # ⭐ ОБРАБОТКА КОМАНДЫ /reply ⭐
     if text.startswith("/reply"):
         # Только админ может использовать /reply
