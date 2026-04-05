@@ -485,6 +485,10 @@ async def on_text(event: MessageCreated):
     if not text:
         return
     
+    # Пропускаем команды — их обрабатывают отдельные хэндлеры
+    if text.startswith("/stats") or text.startswith("/last"):
+        return
+    
     # ⭐ ОБРАБОТКА КОМАНДЫ /reply ⭐
     if text.startswith("/reply"):
         # Только админ может использовать /reply
