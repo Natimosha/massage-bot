@@ -165,8 +165,8 @@ KB_EMAIL_SKIP = make_kb([
 
 # ── ПРАВКА 1: обновлённое меню материалов ──
 KB_MATERIALS = make_kb([
-    [("📎 Путь клиента: от первого сообщения до постоянной записи", "mat_client_path")],
-    [("📎 Упаковка профиля: чек-лист + примеры", "mat_packaging")],
+    [("📎 Первый клиент → Постоянный клиент", "mat_client_path")],
+    [("📎 Продающая упаковка профиля", "mat_packaging")],
     [("🔙 Вернуться в меню", "back_menu")],
 ])
 
@@ -623,8 +623,8 @@ async def send_material(cid, mat_key):
 
     materials = {
         "mat_client_path": {
-            "name": "Путь клиента: от первого сообщения до постоянной записи",
-            "file": "guide_01.pdf",
+            "name": "Первый клиент → Постоянный клиент",
+            "url": "https://raw.githubusercontent.com/Natimosha/massage-bot/main/guide_01.pdf",
             "desc": (
                 "Внутри — готовые фразы для каждого этапа общения с клиентом:\n"
                 "от первого «сколько стоит?» до момента, когда клиент записывается сам.\n\n"
@@ -632,8 +632,8 @@ async def send_material(cid, mat_key):
             ),
         },
         "mat_packaging": {
-            "name": "Упаковка профиля: чек-лист + примеры",
-            "file": "guide_02.pdf",
+            "name": "Продающая упаковка профиля",
+            "url": "https://raw.githubusercontent.com/Natimosha/massage-bot/main/guide_02.pdf",
             "desc": (
                 "Чек-лист для аудита вашего профиля + примеры, которые работают.\n"
                 "Прайс, описание, фото, шапка — всё, что видит клиент до того, как решит написать.\n\n"
@@ -654,14 +654,32 @@ async def send_material(cid, mat_key):
 
     await asyncio.sleep(1)
 
-    # 2. Отправка PDF-файла
+    # 2. Скачиваем PDF с GitHub и отправляем
+    import aiohttp
+    import tempfile
+
     try:
-        await bot.send_message(
-            chat_id=cid,
-            attachments=[InputMedia(path=mat["file"])]
-        )
+        async with aiohttp.ClientSession() as session:
+            async with session.get(mat["url"]) as resp:
+                if resp.status == 200:
+                    pdf_data = await resp.read()
+                    # Сохраняем во временный файл
+                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                        tmp.write(pdf_data)
+                        tmp_path = tmp.name
+                    # Отправляем через InputMedia
+                    await bot.send_message(
+                        chat_id=cid,
+                        attachments=[InputMedia(path=tmp_path)]
+                    )
+                    # Удаляем временный файл
+                    import os
+                    os.unlink(tmp_path)
+                else:
+                    logger.error(f"Ошибка скачивания PDF: HTTP {resp.status}")
+                    await reply(cid, "Не удалось отправить файл. Напишите нам, и мы отправим вручную.")
     except Exception as e:
-        logger.error(f"Ошибка отправки PDF {mat['file']}: {e}")
+        logger.error(f"Ошибка отправки PDF {mat['url']}: {e}")
         await reply(cid, "Не удалось отправить файл. Напишите нам, и мы отправим вручную.")
 
     await asyncio.sleep(1)
