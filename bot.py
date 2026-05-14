@@ -28,7 +28,6 @@ dp = Dispatcher()
 # НАСТРОЙКИ АДМИНИСТРАТОРА
 # ═══════════════════════════════════════════════════════════════
 ADMIN_CHAT_ID = 68198998  # ВАШ CHAT_ID (не user_id!)
-CHANNEL_ID = -69954394920441  # ID канала для проверки подписки
 CHANNEL_LINK = "https://max.ru/id780608560670_biz"  # ссылка на канал
 
 
@@ -196,7 +195,7 @@ KB_EWA_ACTION = make_kb([
 
 KB_GIFT_SUBSCRIBE = make_kb([
     [("📢 Перейти в канал", CHANNEL_LINK, "link")],
-    [("✅ Я подписался — проверить", "gift_check")],
+    [("✅ Готово", "gift_done")],
     [("🔙 Вернуться в меню", "back_menu")],
 ])
 
@@ -440,25 +439,6 @@ async def reply(chat_id, text, kb=None):
     await bot.send_message(chat_id=chat_id, text=text, attachments=kb)
 
 
-async def check_subscription(user_id):
-    """Проверяет, подписан ли пользователь на канал."""
-    import aiohttp
-    try:
-        async with aiohttp.ClientSession() as session:
-            url = f"https://platform-api.max.ru/chats/{CHANNEL_ID}/members"
-            headers = {"Authorization": TOKEN}
-            params = {"user_ids": str(user_id)}
-            async with session.get(url, headers=headers, params=params) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    members = data.get("members", [])
-                    return len(members) > 0
-                return False
-    except Exception as e:
-        logger.error(f"Ошибка проверки подписки: {e}")
-        return False
-
-
 async def send_gift(cid):
     """Отправляет подарок (guide_03.pdf) без запроса email."""
     import aiohttp
@@ -555,34 +535,6 @@ async def on_text(event: MessageCreated):
     if not text:
         return
     
-    # ⭐ ОБРАБОТКА КОМАНДЫ /checksub (отладка) ⭐
-    if text.startswith("/checksub"):
-        if int(cid) != ADMIN_CHAT_ID:
-            await reply(cid, "⛔ Нет прав")
-            return
-        import aiohttp
-        # Проверяем себя или указанный user_id
-        parts = text.split()
-        check_id = parts[1] if len(parts) > 1 else cid
-        try:
-            async with aiohttp.ClientSession() as session:
-                url = f"https://platform-api.max.ru/chats/{CHANNEL_ID}/members"
-                headers = {"Authorization": TOKEN}
-                params = {"user_ids": str(check_id)}
-                async with session.get(url, headers=headers, params=params) as resp:
-                    status = resp.status
-                    raw = await resp.text()
-                    await reply(cid,
-                        f"🔍 **Отладка проверки подписки**\n\n"
-                        f"Channel ID: `{CHANNEL_ID}`\n"
-                        f"User ID: `{check_id}`\n"
-                        f"HTTP status: {status}\n"
-                        f"Ответ API:\n```\n{raw[:1500]}\n```"
-                    )
-        except Exception as e:
-            await reply(cid, f"❌ Ошибка: {e}")
-        return
-
     # ⭐ ОБРАБОТКА КОМАНДЫ /chats ⭐
     if text.startswith("/chats"):
         if int(cid) != ADMIN_CHAT_ID:
@@ -898,28 +850,17 @@ async def on_callback(event: MessageCallback):
     # ═══════════════════════════════════════
 
     if data == "menu_gift":
-        # Сразу проверяем подписку
-        is_subscribed = await check_subscription(cid)
-        if is_subscribed:
-            await send_gift(cid)
-        else:
-            await reply(cid,
-                "Этот подарок — для подписчиков канала 🎁\n\n"
-                "Подпишитесь на канал, а потом нажмите «Я подписался — проверить».\n"
-                "Я проверю и сразу отправлю PDF",
-                KB_GIFT_SUBSCRIBE
-            )
+        await reply(cid,
+            "Хотите получить гайд «Шаблоны визиток массажиста» бесплатно? 🎁\n\n"
+            "Внутри — 5 готовых шаблонов с текстами, советы по дизайну и печати.\n\n"
+            "Условие одно — подписка на канал.\n"
+            "Подпишитесь и нажмите «Готово»",
+            KB_GIFT_SUBSCRIBE
+        )
         return
 
-    if data == "gift_check":
-        is_subscribed = await check_subscription(cid)
-        if is_subscribed:
-            await send_gift(cid)
-        else:
-            await reply(cid,
-                "Пока не вижу вас в подписчиках. Подпишитесь на канал и попробуйте ещё раз",
-                KB_GIFT_SUBSCRIBE
-            )
+    if data == "gift_done":
+        await send_gift(cid)
         return
 
     # ═══════════════════════════════════════
