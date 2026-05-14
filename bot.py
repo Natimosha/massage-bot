@@ -28,6 +28,8 @@ dp = Dispatcher()
 # НАСТРОЙКИ АДМИНИСТРАТОРА
 # ═══════════════════════════════════════════════════════════════
 ADMIN_CHAT_ID = 68198998  # ВАШ CHAT_ID (не user_id!)
+CHANNEL_ID = -69954394920441  # ID канала для проверки подписки
+CHANNEL_LINK = "https://max.ru/id780608560670_biz"  # ссылка на канал
 
 
 
@@ -77,6 +79,7 @@ def make_kb(buttons):
 MAIN_MENU = make_kb([
     [("🔍 Разобрать мою ситуацию", "menu_diag")],
     [("📚 Бесплатные материалы для роста", "menu_mat")],
+    [("🎁 Подарок за подписку", "menu_gift")],
     [("💰 Дополнительный доход массажиста", "menu_ewa")],
 ])
 
@@ -167,7 +170,6 @@ KB_EMAIL_SKIP = make_kb([
 KB_MATERIALS = make_kb([
     [("📎 Первый клиент → Постоянный клиент", "mat_client_path")],
     [("📎 Продающая упаковка профиля", "mat_packaging")],
-    [("📎 Шаблоны визиток массажиста", "mat_vizitki")],
     [("🔙 Вернуться в меню", "back_menu")],
 ])
 
@@ -189,6 +191,12 @@ KB_EWA_INTEREST = make_kb([
 KB_EWA_ACTION = make_kb([
     [("Хочу узнать больше — свяжитесь со мной", "ewa_contact")],
     [("Хочу сначала посмотреть продукты", "ewa_products")],
+    [("🔙 Вернуться в меню", "back_menu")],
+])
+
+KB_GIFT_SUBSCRIBE = make_kb([
+    [("📢 Перейти в канал", CHANNEL_LINK, "link")],
+    [("✅ Я подписался — проверить", "gift_check")],
     [("🔙 Вернуться в меню", "back_menu")],
 ])
 
@@ -430,6 +438,67 @@ def build_result_text(u):
 
 async def reply(chat_id, text, kb=None):
     await bot.send_message(chat_id=chat_id, text=text, attachments=kb)
+
+
+async def check_subscription(user_id):
+    """Проверяет, подписан ли пользователь на канал."""
+    import aiohttp
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"https://platform-api.max.ru/chats/{CHANNEL_ID}/members"
+            headers = {"Authorization": TOKEN}
+            params = {"user_ids": str(user_id)}
+            async with session.get(url, headers=headers, params=params) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    members = data.get("members", [])
+                    return len(members) > 0
+                return False
+    except Exception as e:
+        logger.error(f"Ошибка проверки подписки: {e}")
+        return False
+
+
+async def send_gift(cid):
+    """Отправляет подарок (guide_03.pdf) без запроса email."""
+    import aiohttp
+    import tempfile
+
+    await reply(cid,
+        "📎 «Шаблоны визиток массажиста»\n\n"
+        "5 готовых шаблонов визиток с текстами, советы по дизайну и печати.\n"
+        "Внутри только то, что реально работает"
+    )
+
+    await asyncio.sleep(1)
+
+    try:
+        pdf_url = "https://raw.githubusercontent.com/Natimosha/massage-bot/main/guide_03.pdf"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(pdf_url) as resp:
+                if resp.status == 200:
+                    pdf_data = await resp.read()
+                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                        tmp.write(pdf_data)
+                        tmp_path = tmp.name
+                    await bot.send_message(
+                        chat_id=cid,
+                        attachments=[InputMedia(path=tmp_path)]
+                    )
+                    import os
+                    os.unlink(tmp_path)
+                else:
+                    await reply(cid, "Не удалось отправить файл. Напишите нам, и мы отправим вручную.")
+    except Exception as e:
+        logger.error(f"Ошибка отправки подарка: {e}")
+        await reply(cid, "Не удалось отправить файл. Напишите нам, и мы отправим вручную.")
+
+    await asyncio.sleep(1)
+
+    await reply(cid,
+        "Спасибо за подписку! В канале — разборы, шаблоны и конкретные шаги для роста дохода",
+        KB_BACK
+    )
 
 
 
@@ -714,14 +783,6 @@ async def send_material(cid, mat_key):
                 "Проверьте себя за 10 минут"
             ),
         },
-        "mat_vizitki": {
-            "name": "Шаблоны визиток массажиста",
-            "url": "https://raw.githubusercontent.com/Natimosha/massage-bot/main/guide_03.pdf",
-            "desc": (
-                "5 готовых шаблонов визиток с текстами, советы по дизайну и печати.\n"
-                "Внутри только то, что реально работает"
-            ),
-        },
     }
 
     mat = materials.get(mat_key)
@@ -802,6 +863,35 @@ async def on_callback(event: MessageCallback):
 
     if data == "menu_ewa":
         await reply(cid, EWA_HOOK, KB_EWA_INTEREST)
+        return
+
+    # ═══════════════════════════════════════
+    # ПОДАРОК ЗА ПОДПИСКУ
+    # ═══════════════════════════════════════
+
+    if data == "menu_gift":
+        # Сразу проверяем подписку
+        is_subscribed = await check_subscription(cid)
+        if is_subscribed:
+            await send_gift(cid)
+        else:
+            await reply(cid,
+                "Этот подарок — для подписчиков канала 🎁\n\n"
+                "Подпишитесь на канал, а потом нажмите «Я подписался — проверить».\n"
+                "Я проверю и сразу отправлю PDF",
+                KB_GIFT_SUBSCRIBE
+            )
+        return
+
+    if data == "gift_check":
+        is_subscribed = await check_subscription(cid)
+        if is_subscribed:
+            await send_gift(cid)
+        else:
+            await reply(cid,
+                "Пока не вижу вас в подписчиках. Подпишитесь на канал и попробуйте ещё раз",
+                KB_GIFT_SUBSCRIBE
+            )
         return
 
     # ═══════════════════════════════════════
