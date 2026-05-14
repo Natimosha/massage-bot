@@ -555,6 +555,34 @@ async def on_text(event: MessageCreated):
     if not text:
         return
     
+    # ⭐ ОБРАБОТКА КОМАНДЫ /checksub (отладка) ⭐
+    if text.startswith("/checksub"):
+        if int(cid) != ADMIN_CHAT_ID:
+            await reply(cid, "⛔ Нет прав")
+            return
+        import aiohttp
+        # Проверяем себя или указанный user_id
+        parts = text.split()
+        check_id = parts[1] if len(parts) > 1 else cid
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"https://platform-api.max.ru/chats/{CHANNEL_ID}/members"
+                headers = {"Authorization": TOKEN}
+                params = {"user_ids": str(check_id)}
+                async with session.get(url, headers=headers, params=params) as resp:
+                    status = resp.status
+                    raw = await resp.text()
+                    await reply(cid,
+                        f"🔍 **Отладка проверки подписки**\n\n"
+                        f"Channel ID: `{CHANNEL_ID}`\n"
+                        f"User ID: `{check_id}`\n"
+                        f"HTTP status: {status}\n"
+                        f"Ответ API:\n```\n{raw[:1500]}\n```"
+                    )
+        except Exception as e:
+            await reply(cid, f"❌ Ошибка: {e}")
+        return
+
     # ⭐ ОБРАБОТКА КОМАНДЫ /chats ⭐
     if text.startswith("/chats"):
         if int(cid) != ADMIN_CHAT_ID:
