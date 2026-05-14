@@ -76,9 +76,9 @@ def make_kb(buttons):
 
 
 MAIN_MENU = make_kb([
+    [("🎁 Подарок за подписку", "menu_gift")],
     [("🔍 Разобрать мою ситуацию", "menu_diag")],
     [("📚 Бесплатные материалы для роста", "menu_mat")],
-    [("🎁 Подарок за подписку", "menu_gift")],
     [("💰 Дополнительный доход массажиста", "menu_ewa")],
 ])
 
@@ -691,7 +691,7 @@ async def on_text(event: MessageCreated):
         return
 
     # Команды меню
-    if text.lower() in ("меню", "menu", "старт"):
+    if text.lower() in ("меню", "menu", "старт", "/menu"):
         set_user(cid, state=None)
         await reply(cid, "Выбирайте:", MAIN_MENU)
         return
@@ -1133,6 +1133,30 @@ async def show_last_questions(event: MessageCreated):
 
 async def main():
     logger.info("Бот запускается...")
+
+    # Устанавливаем меню команд
+    import aiohttp
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = "https://platform-api.max.ru/me"
+            headers = {
+                "Authorization": TOKEN,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "commands": [
+                    {"name": "start", "description": "Запустить бота"},
+                    {"name": "menu", "description": "Главное меню"},
+                ]
+            }
+            async with session.patch(url, headers=headers, json=payload) as resp:
+                if resp.status == 200:
+                    logger.info("Команды меню установлены")
+                else:
+                    logger.warning(f"Не удалось установить команды: {resp.status}")
+    except Exception as e:
+        logger.warning(f"Ошибка установки команд: {e}")
+
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
