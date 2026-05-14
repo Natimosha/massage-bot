@@ -451,7 +451,7 @@ async def on_start_btn(event: BotStarted):
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
     
-    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
         try:
             await bot.send_message(
                 chat_id=ADMIN_CHAT_ID,
@@ -467,7 +467,7 @@ async def on_start_cmd(event: MessageCreated):
     get_user(cid)
     await reply(cid, START_MSG, MAIN_MENU)
     
-    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
         try:
             await bot.send_message(
                 chat_id=ADMIN_CHAT_ID,
@@ -488,7 +488,7 @@ async def on_text(event: MessageCreated):
     
     # ⭐ ОБРАБОТКА КОМАНДЫ /chats ⭐
     if text.startswith("/chats"):
-        if cid != ADMIN_CHAT_ID:
+        if int(cid) != ADMIN_CHAT_ID:
             await reply(cid, "⛔ Нет прав")
             return
         import aiohttp
@@ -516,7 +516,7 @@ async def on_text(event: MessageCreated):
 
     # ⭐ ОБРАБОТКА КОМАНДЫ /stats ⭐
     if text.startswith("/stats"):
-        if cid != ADMIN_CHAT_ID:
+        if int(cid) != ADMIN_CHAT_ID:
             await reply(cid, "⛔ Нет прав")
             return
         total_users = len(users)
@@ -535,7 +535,7 @@ async def on_text(event: MessageCreated):
 
     # ⭐ ОБРАБОТКА КОМАНДЫ /last ⭐
     if text.startswith("/last"):
-        if cid != ADMIN_CHAT_ID:
+        if int(cid) != ADMIN_CHAT_ID:
             await reply(cid, "⛔ Нет прав")
             return
         try:
@@ -564,7 +564,7 @@ async def on_text(event: MessageCreated):
     # ⭐ ОБРАБОТКА КОМАНДЫ /reply ⭐
     if text.startswith("/reply"):
         # Только админ может использовать /reply
-        if cid != ADMIN_CHAT_ID:
+        if int(cid) != ADMIN_CHAT_ID:
             await reply(cid, "⛔ Нет прав")
             return
         
@@ -604,7 +604,7 @@ async def on_text(event: MessageCreated):
         set_user(cid, name=name, state="wait_wm")
         await reply(cid, f"{name}, расскажите — как вы сейчас работаете?", KB_WORK_MODE)
         
-        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
             try:
                 await bot.send_message(
                     chat_id=ADMIN_CHAT_ID,
@@ -625,7 +625,7 @@ async def on_text(event: MessageCreated):
             mat_key = u.get("pending_material", "")
             await send_material(cid, mat_key)
             
-            if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+            if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
                 user_name = u.get("name") or "Неизвестный"
                 try:
                     await bot.send_message(
@@ -665,7 +665,7 @@ async def on_text(event: MessageCreated):
         f.write(f"{'='*60}\n\n")
     
     # Отправляем уведомление админу
-    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+    if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
         try:
             await bot.send_message(
                 chat_id=ADMIN_CHAT_ID,
@@ -820,7 +820,7 @@ async def on_callback(event: MessageCallback):
         await reply(cid, EWA_CONTACT, KB_BACK)
         logger.info(f"Ewa contact request from {cid}")
         # Уведомление админу
-        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
             user_name = u.get("name") or "Не представился"
             try:
                 await bot.send_message(
@@ -917,7 +917,7 @@ async def on_callback(event: MessageCallback):
         result_text = build_result_text(u)
         await reply(cid, result_text, KB_RESULT)
         
-        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != cid:
+        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != int(cid):
             user_name = u.get("name") or "Неизвестный"
             try:
                 await bot.send_message(
@@ -971,7 +971,7 @@ async def reply_to_user(event: MessageCreated):
     """Отправляет ответ конкретному пользователю. Использование: /reply 123456789 Текст ответа"""
     cid = event.message.recipient.chat_id
     
-    if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
+    if ADMIN_CHAT_ID and int(cid) != ADMIN_CHAT_ID:
         await reply(cid, "⛔ У вас нет прав для этой команды.")
         return
     
@@ -1011,7 +1011,7 @@ async def show_stats(event: MessageCreated):
     """Показывает статистику бота"""
     cid = event.message.recipient.chat_id
     
-    if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
+    if ADMIN_CHAT_ID and int(cid) != ADMIN_CHAT_ID:
         await reply(cid, "⛔ У вас нет прав для этой команды.")
         return
     
@@ -1036,7 +1036,7 @@ async def show_last_questions(event: MessageCreated):
     """Показывает последние 5 вопросов"""
     cid = event.message.recipient.chat_id
     
-    if ADMIN_CHAT_ID and cid != ADMIN_CHAT_ID:
+    if ADMIN_CHAT_ID and int(cid) != ADMIN_CHAT_ID:
         await reply(cid, "⛔ У вас нет прав для этой команды.")
         return
     
