@@ -486,6 +486,34 @@ async def on_text(event: MessageCreated):
     if not text:
         return
     
+    # ⭐ ОБРАБОТКА КОМАНДЫ /chats ⭐
+    if text.startswith("/chats"):
+        if cid != ADMIN_CHAT_ID:
+            await reply(cid, "⛔ Нет прав")
+            return
+        import aiohttp
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"https://platform-api.max.ru/chats"
+                headers = {"Authorization": TOKEN}
+                async with session.get(url, headers=headers) as resp:
+                    data = await resp.json()
+                    chats = data.get("chats", [])
+                    if not chats:
+                        await reply(cid, "📭 Бот не состоит ни в одном чате/канале.")
+                        return
+                    result = "📋 **Чаты/каналы бота:**\n\n"
+                    for chat in chats:
+                        result += (
+                            f"▫️ {chat.get('title', 'Без названия')}\n"
+                            f"   ID: `{chat.get('chat_id')}`\n"
+                            f"   Тип: {chat.get('type', '?')}\n\n"
+                        )
+                    await reply(cid, result)
+        except Exception as e:
+            await reply(cid, f"❌ Ошибка: {e}")
+        return
+
     # ⭐ ОБРАБОТКА КОМАНДЫ /stats ⭐
     if text.startswith("/stats"):
         if cid != ADMIN_CHAT_ID:
