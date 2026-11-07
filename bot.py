@@ -1089,6 +1089,13 @@ async def show_stats(event: MessageCreated):
     
     await reply(cid, stats_text)
 
+@dp.message_created(Command("myid"))
+async def show_my_id(event: MessageCreated):
+    cid = event.message.recipient.chat_id
+    await bot.send_message(
+        chat_id=cid,
+        text=f"Ваш chat_id: {cid}"
+    )
 
 @dp.message_created(Command("last"))
 async def show_last_questions(event: MessageCreated):
