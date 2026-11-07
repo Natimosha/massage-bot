@@ -510,6 +510,13 @@ async def on_start_btn(event: BotStarted):
             logger.warning(f"Не удалось отправить уведомление: {e}")
 
 
+@dp.message_created(Command("myid"))
+async def show_my_id(event: MessageCreated):
+    cid = event.message.recipient.chat_id
+    await bot.send_message(
+        chat_id=cid,
+        text=f"Ваш chat_id: {cid}"
+    )
 @dp.message_created(Command("start"))
 async def on_start_cmd(event: MessageCreated):
     cid = event.message.recipient.chat_id
